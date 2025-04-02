@@ -1,0 +1,139 @@
+---
+title: "Executive Summary"
+subtitle: |
+  | Final Project 
+  | Data Science 1 with R (STAT 301-1)
+author: "Caroline Corr"
+pagetitle: "Final Project Executive Summary: Caroline Corr"
+date: today
+
+format:
+  html:
+    toc: true
+    toc-depth: 4
+    toc-location: left
+    embed-resources: true
+    link-external-newwindow: true
+
+execute:
+  warning: false
+
+from: markdown+emoji
+reference-location: margin
+citation-location: margin
+---
+
+# Societal Biases in Survivor
+
+```{r}
+#| label: packages-data
+#| echo: false
+
+library <- library(tidyverse)
+contestants <- read_csv("data/contestant_table.csv")
+seasons <- read_csv("data/season_table.csv")
+tribes <- read_csv("data/tribe_table.csv")
+
+contestants_ethnicity <-
+contestants |>
+  mutate(
+    ethnicity = case_when(
+      african_american == 1 ~ "African American",
+      asian_american == 1 ~ "Asian American",
+      latin_american == 1 ~ "Latin American",
+      poc == 0 ~ "Caucasian"
+    ),
+    ethnicity = as.factor(ethnicity)
+  )
+
+```
+
+##### Link to GitHub Repository
+
+::: callout-note
+[Caroline Corr's Final Project Repo](https://github.com/stat301-1-2024-fall/final-project-1-carolinecorr)
+:::
+
+## Overview
+
+CBS' Survivor is considered by many to be television's greatest social experiment. In order to be a true social experiment, it should accurately reflect the diversity of the society that it attempts to mirror. Similarly, as a game played between individuals all with \$1,000,000 in mind, the same biases that influence society would surely influence the game all the same.
+
+In order to gauge how societal biases function in the game of Survivor, I have tracked two major domains of bias: the casting level and the interpersonal level. Through explorations involving demographic factors such as age, race/ethnicity, gender, and sexuality, I have uncovered sources of bias in both domains.
+
+[Link to Dataset](https://www.kaggle.com/datasets/justinveiner/survivor-cbs-dataset)
+
+# Findings and Conclusions
+
+On the casting level, it appears that the greatest sources of bias are age and ethnicity, for older generations and Latin Americans are the most underrepresented demographics on the show according to U.S. Census information.
+
+```{r}
+#| label: fig-ageuni1
+#| echo: false
+
+contestants |>
+ggplot(aes(age)) +
+  geom_histogram(bins = 50) +
+  labs(title = "Distribution of Contestant Age",
+       x = "Age",
+       y = "Count")
+
+```
+
+```{r}
+#| label: tbl-raceuni1
+#| echo: false
+
+national_pct <- tibble(
+  ethnicity = c("Latin American", "Asian American", "African American",
+                "Caucasian"),
+  national_pct = c(19.5, 6.4, 13.7, 58.4)) ## Sourced from US Census
+
+
+contestants_ethnicity |>
+  count(ethnicity) |>
+  inner_join(national_pct, join_by(ethnicity)) |>
+  mutate(
+    pct = round(n / sum(n) * 100, 2), 
+    difference = round(pct - national_pct, 2)) |>
+  relocate(pct, .before = national_pct) |>
+  knitr::kable(caption = "Ethnic Composition of Survivor Contestants Compared to National Composition",
+               col.names = c("Ethnicity", "N", "Survivor %", "National %", "Difference"))
+```
+
+While the lack of representation of older people could be attributed to the fact that Survivor is an intensely physical and uncomfortable experience not entirely suitable for senior members of society, the underrepresentation of Latin American people has no such justification.
+
+On the interpersonal level, while biases do exist against certain age groups, races, and sexual identities, the most overwhelming source of bias appears to be gender.
+
+```{r}
+#| label: fig-genderuni1
+#| echo: false
+
+## Gender Breakdown of Winners
+contestants |>
+  filter(finish == 1) |>
+  ggplot(aes(gender)) +
+  geom_bar(fill = "green") +
+  labs(title = "Distribution of Survivor Winners by Gender",
+       x = "Gender",
+       y = "Count",
+       caption = "There are significantly more male winners.")
+```
+
+```{r}
+#| label: fig-gsbi5
+#| echo: false
+
+# Gender vs. Jury Votes
+contestants |>
+  filter(finish <= 3) |>
+  ggplot(aes(num_jury_votes, gender)) +
+  geom_boxplot() +
+  labs(title = "Distribution of Jury Votes Received by Gender",
+       x = "Number of Jury Votes",
+       y = "Gender")
+
+```
+
+Not only have considerably more men won the show than women, but male finalists tend to receive more jury votes, and male winners tend to win by higher margins.
+
+This is an interesting finding, for there is no bias against female contestants on the production level due to the equal representation of men and women across every season of the show. This bias emerges only on the level of game play, so it is inflicted upon female players purely by their fellow contestants and the perceptions they carry concerning a woman's physical capabilities and overall disposition.

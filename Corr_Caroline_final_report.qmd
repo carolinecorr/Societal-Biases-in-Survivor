@@ -1,0 +1,904 @@
+---
+title: "Societal Biases in Survivor"
+subtitle: |
+  | Final Project 
+  | Data Science 1 with R (STAT 301-1)
+author: "Caroline Corr"
+pagetitle: "Final Project: Caroline Corr"
+date: today
+
+format:
+  html:
+    toc: true
+    toc-depth: 4
+    toc-location: left
+    embed-resources: true
+    link-external-newwindow: true
+
+execute:
+  warning: false
+
+from: markdown+emoji
+reference-location: margin
+citation-location: margin
+---
+
+```{r}
+#| label: packages-data
+#| echo: false
+
+library(tidyverse)
+contestants <- read_csv("data/contestant_table.csv")
+seasons <- read_csv("data/season_table.csv")
+tribes <- read_csv("data/tribe_table.csv")
+
+```
+
+#### Link to GitHub Repository
+
+::: {.callout-note}
+
+
+[Caroline Corr's Final Project Repo](https://github.com/stat301-1-2024-fall/final-project-1-carolinecorr)
+
+:::
+
+# Overview
+
+It has long been said that Survivor as an institution reflects the cultural climate of our society. As a reality show made up of everyday people, it naturally follows that the biases that impact our society would also spill over into the game. Survivor is an intensely social game: it requires you to make your competitors like you and respect your gameplay enough that they will vote for you to win after all of the deceit and "strategery" it took to get yourself to the final 3.
+
+Since your fate in the game ultimately depends on the feelings and opinions of one's fellow competitors, I am interested in assessing how demographic information is related to the results of the game and the state of the competition over time. For my analysis, I am seeking to uncover any potential relationships between age, gender, race, and sexuality and how they impact the individual contestant's performance on the show. I am interested in how these relationships
+could reveal bias both on the level of casting and individual 
+performance in the game.
+
+This exploratory data analysis (EDA) utilizes Justin Veiner's `Survivor (CBS) Dataset`, sourced from kaggle.com. The dataset includes three tables for information concerning individual contestants, seasons, and pre- and post-merge tribes. Since the crux of this EDA is based on demographic information, only the contestant and season tables were used.
+
+[Link to Dataset](https://www.kaggle.com/datasets/justinveiner/survivor-cbs-dataset)
+
+# Data Overview
+
+#### Contestant Table
+
+The contestants table includes 785 observations, one for each contestants on Survivor seasons 1 through 43. There are 32 variables that reflect both in-game qualities and demographic information such as age, gender, race/ethnicity, and sexuality. There are 9 character variables, one date variable, and 22 numeric variables. Over the course of this EDA, some demographic variables were combined and converted into one character variable. These cases will be identified as they arise throughout the EDA for clarity and transparency. This data is very tidy and there is no glaring missingness issue, for the variables that have missing values such as num_jury_votes and tribe2/tribe3 can be explained by the fact that contestants who are eliminated before the final tribal council (FTC) do not receive jury votes, and not all contestants make it far enough in the game to belong to a second or third tribe. 
+
+#### Season Table
+
+The seasons table includes 43 observations, one for each season of Survivor. There are 22 variables that describe both the events of the season and the demographic composition of each cast, with 3 character and 19 numeric. There is no missing data within this table.
+
+# Assessing Bias in Survivor
+
+One of the most glaring biases I have witnessed as a long-time fan of the show is age. During the early part of the game where tribe strength is a priority, older contestants are often voted out early due to the perception that their age would make them a liability in physical challenges. Let us now turn to the data to uncover the presence and magnitude of this perceived bias.
+
+## Contestant Age
+
+#### Univariate Analyses
+```{r}
+#| label: fig-ageuni1
+#| echo: false
+
+contestants |>
+ggplot(aes(age)) +
+  geom_histogram(bins = 50) +
+  labs(title = "Distribution of Contestant Age",
+       x = "Age",
+       y = "Count")
+
+```
+
+@fig-ageuni1 demonstrates how the distribution of contestant ages is strongly right skewed with most contestants falling in the age range from 20 to 30. This indicates that the showrunners are casting more young people, but it is also possible that less older adults audition to be on the show in the first place.
+
+```{r}
+#| label: tbl-ageuni1
+#| echo: false
+
+contestants |>
+summarize(
+  mean_age = round(mean(age), 2),
+  median_age = median(age),
+  sd_age = round(sd(age), 2), 
+  n = n()
+) |>
+  knitr::kable(caption = "Summary Statistics for Contestant Age",
+               col.names = c("Mean Age", "Median Age", "SD", "N"))
+```
+
+@tbl-ageuni1 reinforces this pattern with helpful summary statistics concerning the age of Survivor contestants. While 31 may be quite young in the real world, it is considered middle-aged on the show! This reveals how older people are underrepresented on the casting level, but what about biases existing inside the realm of the show? Let's investigate how age comes into play amidst the Survivor winners' circle:
+
+```{r}
+#| label: fig-ageuni2
+#| echo: false
+
+## Winners
+contestants |>
+  filter(finish == 1) |>
+  ggplot(aes(age)) +
+  geom_density() +
+  labs(title = "Distribution of Contestant Age: Winners",
+       x = "Age",
+       y = "Density")
+```
+
+@fig-ageuni2 appears to follow a similarly right-skewed distribution as @fig-ageuni1. Ergo, older members of society are not only less likely to be on the show in the first place, but they are seemingly at a similar disadvantage even after being cast. However, as previously mentioned, it is possible that this disparity could be a result of older people merely not auditioning at the same volume as younger people. To better understand how age functions as a bias on the show, we need to see how it interacts with other variables.
+
+#### Bivariate Analyses
+
+Before we delve deeper into the bias of the competition, we should first explore how age interacts with another demographic variable: namely, gender. 
+
+```{r}
+#| label: fig-agebi1
+#| echo: false
+
+# Age vs. Gender
+contestants |>
+  filter(gender != "N") |>
+  ggplot(aes(gender, age)) +
+  geom_boxplot() +
+  labs(title = "Distribution of Contestant Age by Gender",
+       x = "Gender",
+       y = "Age",
+       caption = "Male contestants tend to be older, and the oldest
+                  contestants have been men")
+```
+
+Here, we witness a disparity between the distributions of contestant age within each gender. Men and women are cast equally, but @fig-agebi1 suggests that male contestants tend to be slightly older.
+
+Note: Within this dataset, only one contestant is coded as identifying as non-binary, and this contestant has been omitted from all explorations involving contestant gender. This contestant was not excluded for any reason other than the fact that this sample size of 1 is not large enough to generate any relevant insights concerning non-binary players.
+
+```{r}
+#| label: fig-agebi2
+#| echo: false
+
+# Age vs. Placement
+contestants |>
+  mutate(age_group = as.factor(if_else(age < 31, "< 31", ">= 31"))) |>
+  ggplot(aes(finish, age, color = age_group)) +
+  geom_point(alpha = 0.2) +
+  labs(title = "Distribution of Final Placement According to Age",
+       x = "Placement",
+       y = "Age",
+       color = "Age Group")
+```
+
+@fig-agebi2 demonstrates a bimodal distribution for the final placements of contestants older than the median age of 31 (see @tbl-ageuni1), while the distribution is fairly uniform for contestants belonging to the younger age group. Older contestants witness spikes around the 15th to 20th place range which supports my hypothesis that older tribe members are often voted out in the early stages of the game in order to cut out the physically weaker members. The other spike spanning from the finalists to ~7th place range indicates that older contestants who make it past to `The Merge` tend to make a deeper run in the game. 
+
+Note: `The Merge` is the halfway point in the game where all of the tribes are combined into one large tribe. This typically occurs when there are 12 players left in the game. 
+
+
+We now see how age interacts with placement in the grand scheme of the show, but it is also worth considering how age has functioned as a bias throughout Survivor's 20+ year tenure. 
+
+```{r}
+#| label: fig-agebi3
+#| echo: false
+
+# Age vs. Season (over time)
+
+  # median by season
+contestants |>
+  summarize(
+    .by = num_season,
+    median_age = median(age)
+  ) |>
+  ggplot(aes(num_season, median_age)) +
+  geom_point() +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(title = "Distribution of Median Contestant Age Over Time",
+       x = "Season",
+       y = "Median Age")
+```
+
+@fig-agebi3 shows how the median contestant age has remained fairly constant over 43 seasons of Survivor, with season 40 being starkly older than all of its predecessors. This could be because season 40 was Survivor's iconic `Winners at War` season which would naturally involve older, veteran players. 
+
+Note: Seeing as the age distribution is right-skewed (see @fig-ageuni1), the median was selected as a more appropriate measure of center than mean.
+
+```{r}
+#| label: fig-agebi4
+#| echo: false
+
+  # finalists
+contestants |>
+  filter(finish <= 3) |>
+  ggplot(aes(num_season, age)) +
+  geom_point() +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(title = "Distribution of Finalist Ages Over Time",
+       x = "Season",
+       y = "Finalist Age")
+```
+
+@fig-agebi4 shows how finalist ages are similarly fairly consistent with the wider distribution for all contestants, but it is worth noting that the LOESS curve is located slightly above the median age of 31. This suggests that throughout the seasons, contestants closest to the median age are more likely to make it to FTC. 
+
+
+```{r}
+#| label: tbl-agebi1
+#| echo: false
+
+# finalist jury votes by age cohort
+contestants |>
+  filter(finish <= 3) |>
+  mutate(cohort = case_when(
+          age < quantile(age, 0.25) ~ "18-26",
+          (age >= quantile(age, 0.25) & age < quantile(age, 0.5)) ~ "27-31",
+          (age >= quantile(age, 0.5) & age < quantile(age, 0.75)) ~ "32-40",
+          age > quantile(age, 0.75) ~ "40+"
+  )) |>
+  drop_na() |>
+  summarize(
+    .by = cohort,
+    mean_jury_votes = round(mean(num_jury_votes, na.rm = TRUE), 2)
+  ) |>
+  arrange(cohort) |>
+  knitr::kable(caption = "Mean Jury Votes Received by Cohort: Finalists",
+               col.names = c("Cohort", "Mean Jury Votes"))
+
+```
+
+To assess how age potentially functions as a bias at FTC, I calculated the quartiles of contestant age and created a new variable that sorted each contestant into an age cohort that corresponds to each quartile (e.g., 18-26 is 0 to Q1, 27-31 is Q1 to Q2, and so on). @tbl-agebi1 summarizes the mean jury votes received according to each cohort of finalists, revealing that the 32-40 age range receives the most votes on average. Here, jury votes function as a measure of the way a finalist's performance is perceived by their fellow competitors. Therefore, a higher number of jury votes is associated with a stronger overall performance.
+
+
+#### Multivariate Analyses
+
+As noted in @fig-agebi1, male contestants tend to be older than their female counterparts. Let's see how gender interacts with some previously investigated variables that are indicative of biases both in the game and by the casting team. 
+
+```{r}
+#| label: fig-agemulti1
+#| echo: false
+
+# Age vs. Placement vs. Gender
+contestants |>
+  filter(gender != "N") |>
+  summarize(
+    .by = c(finish, gender),
+    mean_age = mean(age),
+    median_age = median(age)
+  ) |>
+  ggplot(aes(finish, median_age, color = gender)) +
+  geom_smooth(method = "loess", se = FALSE) +
+  geom_point() +
+  labs(title = "Distribution of Placement by Contestant Age and Gender",
+       x = "Final Placement",
+       y = "Median Age",
+       color = "Gender")
+```
+
+@fig-agemulti1 takes the median age of all contestants belonging to each gender and finishing placement. This chart supports the findings of @fig-agebi1 and @fig-agebi2, for male contestants are generally older, and older contestants are more likely to be eliminated before The Merge than younger contestants regardless of gender. 
+
+```{r}
+#| label: fig-agemulti2
+#| echo: false
+
+
+# Age vs. Time vs. Gender
+contestants |>
+  filter(gender != "N") |>
+  summarize(
+    .by = c(num_season, gender),
+    median_age = median(age)
+  ) |>
+  ggplot(aes(num_season, median_age, color = gender)) +
+  geom_smooth(method = "loess", se = FALSE) +
+  geom_point() +
+  labs(title = "Distribution of Median Contestant Age over Time",
+       x = "Season",
+       y = "Median Age",
+       color = "Gender")
+```
+
+@fig-agemulti2 reveals an interesting development in recent seasons: the age gap between men and women is shrinking. However, the pattern found in @fig-agebi1 has seemingly held strong over the years, for not one season deviates from the trend of male contestants being generally older than female contestants. 
+
+***
+
+This exploration of age has enlightened us to a multitude of patterns. On the casting level, we have learned that older people are consistently underrepresented on the show, male contestants tend to be older than female contestants, and this gendered age gap appears to be closing in the new era of Survivor. Within the show, we see that older contestants are more likely to be eliminated early on, but they are also more likely to reach the end should they survive through The Merge. Additionally, contestants nearest the median age of 31 tend to have the most success on the show.
+
+Let us now turn to a new potential source of bias: race and ethnicity.
+
+## Contestant Race/Ethnicity
+
+In recent years, CBS has launched a diversity initiative for all of its unscripted reality shows, including Survivor. While this initiative is a great start to ensure proper representation on the network, it does not eliminate the interpersonal biases that influence the results of the show. The following explorations intend to gauge the show's commitment to diversity on the casting level and how race and ethnicity function as a source of bias within the game itself.
+
+#### Univariate Analyses
+
+Let's first take a look at the breakdown of race/ethnicity on the casting level: 
+
+```{r}
+#| label: fig-raceuni1
+#| echo: false
+
+# Manipulate Table
+
+contestants_ethnicity <-
+contestants |>
+  mutate(
+    ethnicity = case_when(
+      african_american == 1 ~ "African American",
+      asian_american == 1 ~ "Asian American",
+      latin_american == 1 ~ "Latin American",
+      poc == 0 ~ "Caucasian"
+    ),
+    ethnicity = as.factor(ethnicity)
+  )
+
+contestants_ethnicity |>
+  ggplot(aes(fct_infreq(ethnicity))) +
+  geom_bar(fill = "blue") +
+  labs(title = "Distribution of Survivor Contestant Race/Ethnicity",
+       x = "Race/Ethnicity",
+       y = "Count")
+```
+
+Clearly, caucasian people make up the vast majority of Survivor contestants. How about the winners?
+
+```{r}
+#| label: fig-raceuni2
+#| echo: false
+
+# Winners
+contestants_ethnicity |>
+  filter(finish == 1) |>
+  ggplot(aes(fct_infreq(ethnicity))) +
+  geom_bar(fill = "green") +
+  labs(title = "Distribution of Survivor Winners' Race/Ethnicity",
+       x = "Race/Ethnicity",
+       y = "Count")
+```
+
+This subset of contestants follows a very similar distribution. @fig-raceuni1 and @fig-raceuni2 demonstrate a potentially misleading narrative, for it is important to remember that not all racial/ethnic identities are equally represented in our society as a whole. To correct for this, let's compare how each race/ethnicity is represented on Survivor to the national population estimate.
+
+
+```{r}
+#| label: tbl-raceuni1
+#| echo: false
+
+national_pct <- tibble(
+  ethnicity = c("Latin American", "Asian American", "African American",
+                "Caucasian"),
+  national_pct = c(19.5, 6.4, 13.7, 58.4)) ## Sourced from US Census
+
+
+contestants_ethnicity |>
+  count(ethnicity) |>
+  inner_join(national_pct, join_by(ethnicity)) |>
+  mutate(
+    pct = round(n / sum(n) * 100, 2), 
+    difference = round(pct - national_pct, 2)) |>
+  relocate(pct, .before = national_pct) |>
+  knitr::kable(caption = "Ethnic Composition of Survivor Contestants Compared to National Composition",
+               col.names = c("Ethnicity", "N", "Survivor %", "National %", "Difference"))
+```
+
+
+```{r}
+#| label: tbl-raceuni2
+#| echo: false
+
+contestants_ethnicity |>
+  filter(finish == 1) |>
+  count(ethnicity) |>
+  inner_join(national_pct, join_by(ethnicity)) |>
+  mutate(
+    pct = round(n / sum(n) * 100, 2), 
+    difference = round(pct - national_pct, 2)) |>
+  relocate(pct, .before = national_pct) |>
+  knitr::kable(caption = "Ethnic Composition of Survivor Winners Compared to National Composition",
+               col.names = c("Ethnicity", "N", "Survivor %", "National %", "Difference"))
+```
+
+
+@tbl-raceuni1 and @tbl-raceuni2 draw from [US Census](https://www.census.gov/quickfacts/) information concerning the national breakdown of each racial identity compared to how each is represented on Survivor. 
+
+On the casting level, caucasian people are the most overrepresented, while African American and Asian American people are represented fairly proportionally in relation to the national composition of these racial groups. The most underrepresented group are Latin Americans, who are cast 12.37% less than they should be according to the US Census.
+
+Considering the winners' circle paints a slightly different picture. While caucasian contestants are winning at a higher rate than their representation suggests and Asian American contestants are winning at a rate that is on-par with their composition, African American and even moreso Latin American contestants are winning less. 
+
+
+#### Bivariate Analyses
+```{r}
+#| label: fig-racebi1
+#| echo: false
+
+# Ethnicity vs. Gender
+contestants_ethnicity |>
+  filter(gender != "N") |>
+  ggplot(aes(ethnicity, fill = gender)) +
+  geom_bar() +
+  labs(title = "Gender Composition by Ethnicity",
+       x = "Ethnicity",
+       y = "Count",
+       fill = "Gender")
+```
+
+
+```{r}
+#| label: tbl-racebi1
+#| echo: false
+
+contestants_ethnicity |>
+  filter(gender != "N") |>
+  summarize(
+    .by = c(ethnicity, gender),
+    n = n()
+  ) |>
+  pivot_wider(
+    names_from = gender,
+    values_from = n
+  )  |>
+  knitr::kable(caption = "Gender Composition by Ethnicity: Numerical Summary",
+               col.names = c("Ethnicity", "Female", "Male"))
+
+```
+
+@fig-racebi2 demonstrates the gender breakdown of each ethnicity, with @tbl-racebi1 providing the numerical summary. African American men and women are approximately equally represented, but there are larger disparities for Caucasian, Latin American, and Asian American contestants. Far more white men than women have been cast for the show, and the opposite can be said for Latin Americans and Asian Americans.
+
+```{r}
+#| label: fig-racebi3
+#| echo: false
+
+contestants_ethnicity |>
+  summarize(
+    .by = num_season,
+    n_contestants = n(),
+    pct_poc = sum(poc) / n_contestants * 100) |>
+  ggplot(aes(num_season, pct_poc)) +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(title = "Percentage of POC Contestants Over 43 Seasons",
+       x = "Season",
+       y = "% POC")
+```
+
+@fig-racebi3 nicely summarizes the percentage of the cast identifying as POC (people of color) throughout the show's run. There appears to be a major shift towards a higher commitment to diversity occurring around the time of season 25's airing in late 2012. 
+
+
+```{r}
+#| label: fig-racebi2
+#| echo: false
+
+# Ethnicity vs. Placement
+contestants_ethnicity |>
+  ggplot(aes(finish, color = ethnicity)) +
+  geom_density() +
+  labs(title = "Distribution of Placement by Race/Ethnicity",
+       x = "Placement",
+       y = "Density",
+       color = "Race/Ethnicity")
+```
+
+@fig-racebi2 shows each race/ethnicity's placement density. The distributions for Caucasian and African American contestants generally follow a unimodal shape, with the highest likelihood of elimination occurring around the time of The Merge.
+
+It's a different story for Asian American and Latin American contestants, as these distributions are bimodal, with peaks before and after The Merge. This suggests that contestants belonging to these ethnicities have been eliminated in the early game and the end game at higher volumes than in the middle of the game.
+
+
+Now that we can see how each race/ethnicity is represented on the show and how the show's diversity has changed over time, let's take a look at how this variable could potentially influence the game itself.
+```{r}
+#| label: fig-racebi4
+#| echo: false
+
+# Ethnicity vs. Jury Votes
+contestants_ethnicity |>
+  filter(finish <= 3) |>
+  ggplot(aes(num_jury_votes, ethnicity)) +
+  geom_boxplot() +
+  labs(title = "Distribution of Jury Votes Received by Ethnicity",
+       x = "Number of Jury Votes",
+       y = "Ethnicity")
+```
+
+@fig-racebi4 provides insight into how contestants of each race/ethnicity are received by the final jury of their peers at the end of the game. Interestingly, Latin American finalists average the highest amount of jury votes, but Caucasian and African American contestants tend to win by the highest margins. 
+
+An interesting dynamic that arises in the endgame of Survivor is the reliance on "goats." Goats are contestants that are brought to the end by their allies based off of the perception that the goat's poor gameplay will make the other finalists look better to the jury. Looking at this graphic, if we consider finalists falling in the first quartile of their ethnic group to be goats, it is telling that Latin American and Caucasian goats have received more votes than Asian American or African American goats. 
+
+
+```{r}
+#| label: tbl-racebi2
+#| echo: false
+
+  # Finalists
+contestants_ethnicity |>
+  filter(finish <= 3) |>
+  summarize(
+    .by = ethnicity,
+    mean_votes = round(mean(num_jury_votes, na.rm = TRUE), 2)
+  ) |>
+  knitr::kable(caption = "Mean Jury Votes Received by Ethnicity: Finalists",
+               col.names = c("Ethnicity", "Mean Votes Received"))
+```
+
+@tbl-racebi2 reveals the average votes received by finalists from each race/ethnic group. This reflects the findings of @fig-racebi4, but it is important to add the goat dynamic into our understanding of this breakdown. To correct for 0 vote/losing finalists, let's see how this spread changes when we only look at votes received by winners of the show.
+
+
+```{r}
+#| label: tbl-racebi3
+#| echo: false
+
+  # Winners
+contestants_ethnicity |>
+  filter(finish == 1) |>
+  summarize(
+    .by = ethnicity,
+    mean_votes = round(mean(num_jury_votes, na.rm = TRUE), 2)
+  ) |>
+  knitr::kable(caption = "Mean Jury Votes Received by Ethnicity: Winners",
+               col.names = c("Ethnicity", "Mean Votes Received"))
+```
+
+When we only consider the winners, we see that it is actually African American and Latin American winners who have won by the greatest margins!
+
+
+#### Multivariate Analyses
+
+Much like our assessment of how age functions as a source of bias in Survivor, it is important to remember that gender is often an important determinant that interacts with other variables to create bias. 
+
+```{r}
+#| label: fig-racemulti1
+#| echo: false
+
+# Ethnicity vs. Placement vs. Gender
+contestants_ethnicity |>
+  filter(gender != "N") |>
+  ggplot(aes(finish, color = ethnicity)) +
+  geom_density() +
+  facet_wrap(~gender) +
+  labs(title = "Density of Final Placements by Gender and Ethnicity",
+       x = "Placement",
+       y = "Density",
+       color = "Ethnicity")
+```
+
+@fig-racemulti1 shows us how the distribution of placement according to ethnicity changes depending on gender. While all female contestants regardless of race/ethnicity follow a bimodal distribution with peaks in the early and endgames, the same can only be said for Asian American men. Every other male ethnicity is approximately unimodal, with most eliminations occurring around The Merge.
+
+This could potentially reflect how tribes tend to vote out the players they perceive to be weaker in the early stages of the game, while after The Merge, the physically strongest players become challenge threats and are eliminated as soon as they lose immunity. These tendencies often fall along gendered lines within the show, as the women are seen as weaker and the men are thought to be stronger. 
+
+
+```{r}
+#| label: fig-racemulti2
+#| echo: false
+
+# Ethnicity vs. Time vs. Gender
+contestants_ethnicity |>
+  filter(gender != "N") |>
+  summarize(
+    .by = c(num_season, gender, ethnicity),
+    n = n()
+  ) |>
+  ggplot(aes(num_season, n, color = ethnicity)) +
+  geom_smooth(method = "loess", se = FALSE) +
+  facet_wrap(~gender) +
+  labs(title = "Ethnic Compositions of Each Season by Gender",
+       x = "Season",
+       y = "Number of Contestants",
+       color = "Ethnicity")
+```
+
+@fig-racemulti2 demonstrates how the number of contestants belonging to each race/ethnic group has changed from season to season. This reflects the findings of @fig-racebi3, but it also enlightens us to the changes within each gender. African American men have witnessed a sharper increase in casting than their female counterparts, while the number of Asian American women cast is decreasing as opposed to Asian American males who are seeing a gradual increase in their representation. 
+
+***
+
+Race and ethnicity function in several ways in the world of Survivor. On the casting level, we have learned that while African and Asian Americans are relatively fairly represented, Caucasian people are starkly overcast, and Latin Americans are quite underrepresented, particularly the men. While Survivor has become far more diverse over the course of its 43 seasons, these figures demonstrate that there is still plenty of work to be done.
+
+On the interpersonal level, there is some evidence for the presence of racial/ethnic biases influencing the game. POC contestants (women in particular) are generally eliminated at higher rates during the beginning of the game, and African and Asian Americans tend to receive less votes at FTC than Caucasian and Latin American finalists. However, of the winners, African and Latin Americans have won by the highest margins.
+
+Let's now take a look at the last potential source of bias in this EDA: gender and sexuality.
+
+## Contestant Gender/Sexuality
+
+On each season of Survivor, there is an even number of male and female contestants, so it is no question that both are equally represented on the show. However, that does not guarantee that both are regarded equally. 
+
+#### Univariate Analyses
+```{r}
+#| label: fig-genderuni1
+#| echo: false
+
+## Gender Breakdown of Winners
+contestants |>
+  filter(finish == 1) |>
+  ggplot(aes(gender)) +
+  geom_bar(fill = "green") +
+  labs(title = "Distribution of Survivor Winners by Gender",
+       x = "Gender",
+       y = "Count",
+       caption = "There are significantly more male winners.")
+```
+
+@fig-genderuni1 shows how the Survivor winners' circle is dominated by men. We will explore the relationship between gender and final placement in the Bivariate Analysis section.
+
+```{r}
+#| label: tbl-lgbtuni1
+#| echo: false
+
+## LGBT contestants
+ntl_pct <- tibble(
+            sexuality = c("LGBT", "Non-LGBT"),
+            national_pct = c(7.6, 92.4)
+)
+
+# Manipulate
+contestants_lgbt <-
+contestants |>
+  mutate(sexuality = if_else(lgbt == 1, "LGBT", "Non-LGBT"))
+
+contestants_lgbt |>
+  count(sexuality) |>
+  inner_join(ntl_pct) |>
+  mutate(
+    pct = round(n / sum(n) * 100, 2), 
+    difference = round(pct - national_pct, 2)) |>
+  relocate(pct, .before = national_pct) |>
+  knitr::kable(caption = "Composition of Survivor Contestant Sexual Orientation vs. National Percentage",
+               col.names = c("Sexuality", "N", "Survivor %", "National %", "Difference"))
+# LGBT contestants are actually overly represented!
+```
+
+To gauge whether or not LGBTQ+ contestants are fairly represented on the show, the percentage of LGBTQ+ contestants is compared to the national percentage according to the [2024 Gallup Poll](https://news.gallup.com/poll/611864/lgbtq-identification.aspx) conducted by Jeffrey M. Jones. @tbl-lgbtuni1 interestingly suggests that LGBTQ+ contestants are actually slightly overrepresented in comparison to the national breakdown!
+
+```{r}
+#| label: tbl-lgbtuni2
+#| echo: false
+
+# Winners
+contestants_lgbt |>
+  filter(finish == 1) |>
+  count(sexuality) |>
+  inner_join(ntl_pct) |>
+  mutate(
+    pct = round(n / sum(n) * 100, 2),
+    difference = round(pct - national_pct, 2)) |>
+  relocate(pct, .before = national_pct) |>
+  knitr::kable(caption = "Composition of Survivor Winner Sexual Orientation vs. National Percentage",
+               col.names = c("Sexuality", "N", "Survivor %", "National %", "Difference"))
+```
+
+When only winners are considered, it's a different story. In fact, only 2 LGBTQ+ contestants have won the show in 43 seasons.
+
+#### Bivariate Analyses
+
+Gender and sexuality go hand in hand when it comes to potential bias. First, let's see how these two factors interact on the casting level.
+
+```{r}
+#| label: fig-gsbi1
+#| echo: false
+
+# Gender vs. Sexuality
+contestants_lgbt |>
+  filter(gender != "N") |>
+  ggplot(aes(gender, fill = sexuality)) +
+  geom_bar() +
+  labs(title = "Breakdown of LGBT Contestants by Gender",
+       x = "Gender",
+       y = "Count",
+       fill = "Sexuality",
+       caption = "There have been slightly more LGBT male contestants.")
+
+
+```
+
+As we can see in @fig-gsbi1, LGBTQ+ men have been cast at a higher volume than queer women. 
+
+```{r}
+#| label: fig-gsbi2
+#| echo: false
+
+# Gender vs. Placement
+contestants |>
+  filter(gender != "N") |>
+  ggplot(aes(finish, color = gender)) +
+  geom_density(linewidth = 1) +
+  labs(title = "Distribution of Final Placement by Gender",
+       x = "Placement",
+       y = "Density",
+       color = "Gender")
+# More women voted out pre merge, more men voted out at merge
+
+```
+
+While men and women are cast equally, @fig-gsbi2 shows how these genders experience the game in near-opposite ways. The female curve is bimodal, suggesting that women are more likely to be eliminated in the early game or the end game. The opposite can be said for male contestants, for they follow a unimodal distribution that reinforces how they are more likely to be eliminated during the early Merge where physical threats are targeted. 
+
+```{r}
+#| label: fig-gsbi3
+#| echo: false
+
+# Sexuality vs. Placement
+contestants_lgbt |>
+  ggplot(aes(finish, color = sexuality)) +
+  geom_density(linewidth = 1) +
+  labs(title = "Distribution of Final Placement by Sexuality",
+       x = "Placement",
+       y = "Density",
+       color = "Sexuality")
+
+```
+
+The same cannot be said for sexuality, for LGBTQ+ contestants follow a unimodal curve while that of the non-LGBTQ+ player distribution is more uniform. While LGBTQ+ contestants tend have been eliminated at the highest volume in the mid game, non-LGBTQ+ players are eliminated at similar volumes across almost the entire duration of the game. This could be explained by the mere fact that there are far more cis/hetero contestants than not, so data concerning LGBTQ+ contestants is limited.
+
+```{r}
+#| label: fig-gsbi4
+#| echo: false
+
+# Sexuality vs. Season (over time)
+seasons |>
+  mutate(pct_lgbt = lgbt / num_contestants * 100) |>
+  ggplot(aes(num_season, pct_lgbt)) +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(title = "Percentage of LGBT Contestants over 43 Seasons",
+       x = "Season",
+       y = "% LGBT")
+
+```
+
+@fig-gsbi4 follows a very similar curve to @fig-racebi3, demonstrating how Survivor has gotten a lot more diverse since its 20th season. In fact, since around season 30, LGBTQ+ contestants have actually been strongly overrepresented on the show (according to the national percentage shown in @tbl-lgbtuni1)
+
+
+```{r}
+#| label: fig-gsbi5
+#| echo: false
+
+# Gender vs. Jury Votes
+contestants |>
+  filter(finish <= 3) |>
+  ggplot(aes(num_jury_votes, gender)) +
+  geom_boxplot() +
+  labs(title = "Distribution of Jury Votes Received by Gender",
+       x = "Number of Jury Votes",
+       y = "Gender")
+
+```
+
+@fig-gsbi5 demonstrates how male finalists tend to receive more jury votes than their female counterparts. Interestingly, if we continue qualifying finalists within the first quartile as goats, it appears that male and female goats both tend to receive the same amount of votes.
+
+```{r}
+#| label: tbl-gsbi1
+#| echo: false
+
+contestants |>
+  filter(finish <= 3) |>
+  summarize(
+    .by = gender,
+    mean_jury_votes = round(mean(num_jury_votes, na.rm = TRUE), 2)
+  ) |>
+  knitr::kable(caption = "Mean Jury Votes Received by Gender: Finalists",
+               col.names = c("Gender", "Mean Votes Received"))
+
+```
+
+
+
+```{r}
+#| label: tbl-gsbi2
+#| echo: false
+
+# Winners
+contestants |>
+  filter(finish == 1) |>
+  summarize(
+    .by = gender,
+    mean_jury_votes = round(mean(num_jury_votes, na.rm = TRUE), 2)
+  ) |>
+  knitr::kable(caption = "Mean Jury Votes Received by Gender: Winners",
+               col.names = c("Gender", "Mean Votes Received"))
+
+```
+
+@tbl-gsbi1 and @tbl-gsbi2 reinforce these findings from @fig-gsbi5, for not only do male finalists tend to receive more votes, but they also tend to win by a considerably higher margin than female finalists. 
+
+***
+
+When it comes to sexuality, this relationship is harder to parse due to a limited sample size of LGBTQ+ finalists and winners. Visuals concerning how LGBTQ+ contestants are received at FTC compared to non-LGBTQ+ players can be seen in `Appendix: Extra Explorations.`
+
+#### Multivariate Analyses
+```{r}
+#| label: fig-gsmulti1
+#| echo: false
+
+# Sexuality vs. Placement vs. Gender
+contestants_lgbt |>
+  filter(gender != "N") |>
+  ggplot(aes(finish, color = sexuality)) +
+  geom_density(linewidth = 1) +
+  facet_wrap(~gender) +
+  labs(title = "Density of Final Placements by Gender
+                and Sexuality",
+       x = "Placement",
+       y = "Density",
+       color = "Sexuality")
+```
+
+Much like the narrative seen in @fig-racemulti1, female contestants witness a bimodal distribution concerning their placement while the male distribution is unimodal, regardless of race, ethnicity, or sexuality. However, it is worth noting that the non-LGBTQ+ curves are slightly wider than the LGBTQ+ curve. While this does not suggest much in-game bias, it does testify to the smaller pool of LGBTQ+ contestants.
+
+```{r}
+#| label: fig-gsmulti2
+#| echo: false
+
+# Sexuality vs. Time vs. Gender
+contestants_lgbt |>
+  filter(gender != "N") |>
+  summarize(
+    .by = c(num_season, gender, sexuality),
+    n = n()
+  ) |>
+  ggplot(aes(num_season, n, color = sexuality)) +
+  geom_smooth(method = "loess", se = FALSE) +
+  facet_wrap(~gender) +
+  labs(title = "Sexuality Composition of Each Season by Gender",
+       x = "Season",
+       y = "Number of Contestants",
+       color = "Sexuality")
+```
+
+While the curves in @fig-gsmulti2 are subtle, there are some interesting patterns to tease out. It appears that there has never been more than one LGBTQ+ contestant of each gender on any season of the show up to season 43, and while LGBTQ+ men are represented in the cast quite consistently, there have been seasons where not a single LGBTQ+ woman is featured on the cast.
+
+***
+
+On the casting level, there is not much evidence for bias. Men and women are cast equally for the show, and LGBTQ+ people are fairly represented according to the national composition. 
+
+On the interpersonal level, the data does suggest some degree of bias against female contestants. They are more likely to be eliminated in the early game based off of the perception that they are weaker in tribe challenges, and they tend to receive less jury votes at FTC than male finalists. For LGBTQ+ contestants, it does not seem appropriate to draw any conclusions due to the small sample size of LGBTQ+ finalists and winners.
+
+# Conclusion
+
+From this exploration, it is clear to see that demographic information plays a role in generating bias on behalf of the showrunners but also fellow contestants within the game. 
+
+On the casting level, we have learned that older generations, Latin Americans, and LGBTQ+ women are the most underrepresented on the show. 
+
+On the interpersonal level, there is the most evidence for bias against older contestants, Latin and Asian American contestants, and women in general, regardless of age, race/ethnicity, or sexuality. 
+
+Throughout this exploration, it became abundantly clear that gender was the ultimate source of bias within the show. This is an interesting revelation, seeing as gender does not bias the casting process in the slightest. Regardless of age, race/ethnicity, or sexuality, female contestants have historically been eliminated earlier, won the show less, and received less jury votes at FTC. I believe this can be attributed to the tendency for people to perceive women who possess the traits often associated with good Survivor gameplay - assertiveness, decisiveness, and manipulation - in a less favorable light than men who behave similarly.
+
+In the future, I would be interested in delving deeper into how sexuality functions as a form of bias. This dataset only codes contestants as LGBTQ+ or not, and it does not provide any further information into specific LGBTQ+ identities. Although this does not solve the issue of small sample size, I believe more meaningful insights could be drawn given more specific information.
+
+# References
+
+Jones, J. M. (2024, March 13). *LGBTQ+ Identification in U.S. Now at 7.6%*. news.gallup.com. https://news.gallup.com/poll/611864/lgbtq-identification.aspx 
+
+U.S. Census Bureau (2023, July 1). *Quickfacts*. census.gov. https://www.census.gov/quickfacts/
+
+Veiner, J. (2022). *Survivor (CBS) Dataset*. kaggle.com. https://www.kaggle.com/datasets/justinveiner/survivor-cbs-dataset
+
+# Appendix: Extra Explorations
+```{r}
+#| label: fig-gsbi6
+#| echo: false
+
+# Sexuality vs. Jury Votes
+contestants_lgbt |>
+  filter(finish <= 3) |>
+  ggplot(aes(num_jury_votes, sexuality)) +
+  geom_boxplot() +
+  labs(title = "Distribution of Jury Votes Received by Sexuality",
+       x = "Number of Jury Votes",
+       y = "Sexuality")
+
+```
+
+
+
+```{r}
+#| label: tbl-gsbi3
+#| echo: false
+
+contestants_lgbt |>
+  filter(finish <= 3) |>
+  summarize(
+    .by = sexuality,
+    mean_jury_votes = round(mean(num_jury_votes, na.rm = TRUE), 2)
+  ) |>
+  knitr::kable(caption = "Mean Votes Received by Sexuality: Finalists",
+               col.names = c("Sexuality", "Mean Votes Received"))
+
+```
+
+
+```{r}
+#| label: tbl-gsbi4
+#| echo: false
+
+# Winners
+contestants_lgbt |>
+  filter(finish == 1) |>
+  summarize(
+    .by = sexuality,
+    mean_jury_votes = round(mean(num_jury_votes, na.rm = TRUE), 2)
+  ) |>
+  knitr::kable(caption = "Mean Votes Received by Sexuality: Winners",
+               col.names = c("Sexuality", "Mean Votes Received"))
+
+```
+
+
+
+
