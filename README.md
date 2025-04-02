@@ -4,7 +4,7 @@ Exploratory data analysis project assessing demographic representation in CBS Su
 
 Implements data cleaning and visualization skills learned in DSwR1.
 
-Duplicated and relocated to personal public GitHub repository. Minor changes made to remove unnecessary components related to the course and ease of understanding for non-university affiliated viewers.
+This project has been duplicated and relocated to my personal public GitHub repository. Minor changes were made to remove unnecessary components related to the course for ease of understanding for non-university affiliated viewers, but all of the original code and final outputs have been preserved. This repository only reflects the changes made during the relocation process; therefore, none of the commits relate to the original creation of this project's form and content.
 
 # Table of Contents
 
